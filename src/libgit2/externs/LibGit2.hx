@@ -1,5 +1,46 @@
 package libgit2.externs;
 
+
+#if js
+#if kha_html5
+import kha.Worker;
+#else
+//@TODO: haxe will need to supply a way to use Webworkers for this to work
+#end
+
+class LibGit2 {
+
+    static var worker:Worker;
+    static var lastError:Error;
+    static function receive(value:Dynamic){
+        if(Reflect.hasField(value,"info")){
+            trace(value.info);
+            Main.thandle.text+= value.info;
+        }
+        else if(Reflect.hasField(value,"error")){
+            trace(value.error);
+            LibGit2.lastError = new Error();
+            LibGit2.lastError.message = value.error;
+        }
+    }
+    public static function git_libgit2_init(){
+        #if !kha_in_worker
+        Worker.create(libgit2.externs.GitWorker);
+        #end
+        worker = Worker._create("libgit2.externs.GitWorker.js");
+        worker.notify(receive);
+    }
+    public static function git_libgit2_shutdown(){};
+    public static function giterr_last():Error{
+        return lastError;
+    }
+    static final _call= function (args:Array<Dynamic>){
+        worker.post({args : args});
+    };
+    public static final call:Dynamic = Reflect.makeVarArgs(_call);
+}
+
+#else
 import cpp.Char;
 import cpp.ConstCharStar;
 import cpp.ConstStar;
@@ -421,3 +462,4 @@ extern abstract CharStar(RawPointer<Char>) to(RawPointer<Char>) {
 	@:to public inline function toPointer():RawPointer<Char>
 		return this;
 }
+#end

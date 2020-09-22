@@ -1,10 +1,12 @@
 package libgit2;
 
-import cpp.RawPointer;
-import libgit2.RevWalk.SortFlags;
-import libgit2.externs.LibGit2;
-import libgit2.externs.LibGit2.GitRepository;
 
+
+import libgit2.externs.LibGit2;
+#if cpp
+import libgit2.RevWalk.SortFlags;
+import libgit2.externs.LibGit2.GitRepository;
+import cpp.RawPointer;
 @:headerClassCode('
 static int credentialsCallback(git_cred ** cred, const char * url, const char * username_from_url, unsigned int allowed_types, void * payload) {
     if ((allowed_types & GIT_CREDTYPE_USERPASS_PLAINTEXT) != 0) {
@@ -17,6 +19,7 @@ static int credentialsCallback(git_cred ** cred, const char * url, const char * 
     return 1; /* unable to provide authentication data */
 }
 ')
+#end
 
 @:unreflective
 @:access(libgit2.Index)
@@ -25,19 +28,24 @@ static int credentialsCallback(git_cred ** cred, const char * url, const char * 
 @:access(libgit2.Tree)
 @:access(libgit2.Remote)
 class Repository extends Common {
+    #if cpp
     private var pointer:RawPointer<GitRepository> = null;
-    
+    #end
+    public var url:String;
     public var path:String;
     
     public var user:UserDetails = null;
     
     public function open(path:String) {
+        #if cpp
         var r = LibGit2.git_repository_open(RawPointer.addressOf(pointer), path);
         checkError(r);
-        
+        #elseif js
+        LibGit2.call("createDirOrCd",path);
+        #end
         this.path = path;
     }
-    
+    #if cpp
     public function createWalker(sorting:Null<Int> = null, pushHead:Bool = true, hideGlob:String = "tags/*"):RevWalk {
         var walker = new RevWalk(this);
         if (sorting != null) {
@@ -70,8 +78,11 @@ class Repository extends Common {
         var ref = new Reference(this, name);
         return ref;
     }
-    
+    #end
     public function addPath(path:String, index:Index = null) {
+        #if js
+        LibGit2.call("add",'--verbose',path);
+        #else
         var freeIndex = false;
         if (index == null) {
             index = this.index;
@@ -83,9 +94,22 @@ class Repository extends Common {
         if (freeIndex == true) {
             index.free();
         }
+        #end
     }
-    
-    public function createCommit(message:String, ref:String = "HEAD", author:Signature = null, committer:Signature = null, tree:Tree = null, parents:Array<Commit> = null):Commit {
+    public function clone(url:String,recursive:Bool = false){
+        #if js
+        this.url = StringTools.contains(url,"https://") && StringTools.endsWith(url,'.git') ? url: "";
+        if(this.url.length > 0 && path != null){
+            var r = recursive ? "--recursive":'';
+            LibGit2.call("clone",url,path);
+        }
+        #else
+        #end
+    }
+    public function createCommit(message:String, ref:String = "HEAD", author:Signature = null, committer:Signature = null, tree:Tree = null, parents:Array<Commit> = null)#if js :Void#else:Commit#end {
+        #if js
+        LibGit2.call("commit",'-m','\"$message\"');
+        #else
         var freeAuthor = false;
         if (author == null) {
             author = user.signature;
@@ -149,17 +173,28 @@ class Repository extends Common {
         }
         
         return commit;
+        #end
     }
-    
+    #if cpp
     public function remote(name:String = "origin"):Remote {
         var r = new Remote(this);
         r.lookup(name);
         return r;
     }
+    #end
     
     private static var _currentUsername:String = null;
     private static var _currentPassword:String = null;
     public function push(remoteName:String = "origin", refSpec:String = "HEAD:refs/heads/master") {
+        #if js
+        if (user != null) {
+            _currentUsername = user.username;
+            _currentPassword = user.password;
+        }
+        var nurl = StringTools.replace(url,"https://",'');
+        //when arguments are supported: ,'https://$_currentUsername:$_currentPassword@$nurl'
+        LibGit2.call("push");
+        #else
         var remote = remote(remoteName);
         
         var remoteCallbacks = GitRemoteCallbacks.alloc();
@@ -205,8 +240,9 @@ class Repository extends Common {
         
         LibGit2.git_remote_disconnect(remote.pointer);
         LibGit2.git_remote_free(remote.pointer);
+        #end
     }
-    
+    #if cpp
     public function stateCleanup() {
         var r = LibGit2.git_repository_state_cleanup(pointer);
         checkError(r);
@@ -219,4 +255,5 @@ class Repository extends Common {
         resetPathSpecs.free();
         checkError(r);
     }
+    #end
 }

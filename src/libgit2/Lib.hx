@@ -8,11 +8,16 @@ class Lib {
     
     public static var lastError(get, null):Error;
     private static function get_lastError():Error {
+        #if js
+        return LibGit2.giterr_last();
+        #else
         var git_error = LibGit2.giterr_last();
         var error = new Error();
         error.klass = git_error.klass;
         error.message = new String(git_error.message);
         return error;
+        #end
+        
     }
     
     public static function init() {
@@ -22,6 +27,7 @@ class Lib {
         
         LibGit2.git_libgit2_init();
         _init = true;
+        
     }
     
     public static function shutdown() {

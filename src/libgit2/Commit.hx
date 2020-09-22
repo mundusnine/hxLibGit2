@@ -1,16 +1,21 @@
 package libgit2;
 
-import cpp.RawPointer;
+
 import libgit2.externs.LibGit2;
+#if cpp
+import cpp.RawPointer;
 import libgit2.externs.LibGit2.GitCommit;
+#end
 
 @:unreflective
 @:access(libgit2.Repository)
 @:access(libgit2.Oid)
 @:access(libgit2.Signature)
 class Commit extends Common {
+    #if cpp
     private var pointer:RawPointer<GitCommit> = null;
     
+
     public var repository:Repository;
     
     public var oid:Oid;
@@ -52,4 +57,5 @@ class Commit extends Common {
         sig.pointer = untyped __cpp__("(git_signature *){0}", LibGit2.git_commit_committer(pointer));
         return sig;
     }
+    #end
 }

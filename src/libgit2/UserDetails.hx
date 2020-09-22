@@ -1,5 +1,7 @@
 package libgit2;
 
+import libgit2.externs.LibGit2;
+
 class UserDetails {
     public var name:String;
     public var email:String;
@@ -11,6 +13,9 @@ class UserDetails {
         this.email = email;
         this.username = email;
         this.password = password;
+        #if js
+        LibGit2.call("NewUser",'/home/web_user/.gitconfig','[user]\n' +'name = $name\n' +'email = $email');
+        #end
     }
     
     public var signature(get, null):Signature;

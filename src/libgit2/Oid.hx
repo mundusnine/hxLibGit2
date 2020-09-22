@@ -1,11 +1,14 @@
 package libgit2;
 
-import cpp.RawPointer;
+
 import libgit2.externs.LibGit2;
+#if cpp
+import cpp.RawPointer;
 import libgit2.externs.LibGit2.CharStar;
 import libgit2.externs.LibGit2.GitOid;
-
+#end
 class Oid extends Common {
+    #if cpp
     private var oid:GitOid;
     private var pointer:RawPointer<GitOid> = null;
     
@@ -28,4 +31,5 @@ class Oid extends Common {
     public function toString() {
         return asString;
     }
+    #end
 }
